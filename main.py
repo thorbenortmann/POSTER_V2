@@ -2,6 +2,7 @@ import shutil
 import warnings
 from sklearn import metrics
 from sklearn.metrics import confusion_matrix, plot_confusion_matrix
+
 warnings.filterwarnings("ignore")
 import torch.utils.data as data
 import os
@@ -28,8 +29,6 @@ time_str = now.strftime("[%m-%d]-[%H-%M]-")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data', type=str, default=r'/home/Dataset/RAF')
-parser.add_argument('--data_type', default='RAF-DB', choices=['RAF-DB', 'AffectNet-7', 'CAER-S'],
-                        type=str, help='dataset option')
 parser.add_argument('--checkpoint_path', type=str, default='./checkpoint/' + time_str + 'model.pth')
 parser.add_argument('--best_checkpoint_path', type=str, default='./checkpoint/' + time_str + 'model_best.pth')
 parser.add_argument('-j', '--workers', default=4, type=int, metavar='N', help='number of data loading workers')
@@ -97,40 +96,20 @@ def main():
     valdir = os.path.join(args.data, 'valid')
 
     if args.evaluate is None:
+        train_dataset = datasets.ImageFolder(traindir,
+                                             transforms.Compose([transforms.Resize((224, 224)),
+                                                                 transforms.RandomHorizontalFlip(),
+                                                                 transforms.ToTensor(),
+                                                                 transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                                                      std=[0.229, 0.224, 0.225]),
+                                                                 transforms.RandomErasing(p=1, scale=(0.05, 0.05))]))
 
-        if args.data_type == 'RAF-DB':
-            train_dataset = datasets.ImageFolder(traindir,
-                                                 transforms.Compose([transforms.Resize((224, 224)),
-                                                                     transforms.RandomHorizontalFlip(),
-                                                                     transforms.ToTensor(),
-                                                                     transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                                                          std=[0.229, 0.224, 0.225]),
-                                                                     transforms.RandomErasing(scale=(0.02, 0.1))]))
-        else:
-            train_dataset = datasets.ImageFolder(traindir,
-                                                 transforms.Compose([transforms.Resize((224, 224)),
-                                                                     transforms.RandomHorizontalFlip(),
-                                                                     transforms.ToTensor(),
-                                                                     transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                                                          std=[0.229, 0.224, 0.225]),
-                                                                     transforms.RandomErasing(p=1, scale=(0.05, 0.05))]))
-
-        if args.data_type == 'AffectNet-7':
-
-            train_loader = torch.utils.data.DataLoader(train_dataset,
-                                                       sampler=ImbalancedDatasetSampler(train_dataset),
-                                                       batch_size=args.batch_size,
-                                                       shuffle=False,
-                                                       num_workers=args.workers,
-                                                       pin_memory=True)
-
-        else:
-
-            train_loader = torch.utils.data.DataLoader(train_dataset,
-                                                       batch_size=args.batch_size,
-                                                       shuffle=True,
-                                                       num_workers=args.workers,
-                                                       pin_memory=True)
+        train_loader = torch.utils.data.DataLoader(train_dataset,
+                                                   sampler=ImbalancedDatasetSampler(train_dataset),
+                                                   batch_size=args.batch_size,
+                                                   shuffle=False,
+                                                   num_workers=args.workers,
+                                                   pin_memory=True)
 
     test_dataset = datasets.ImageFolder(valdir,
                                         transforms.Compose([transforms.Resize((224, 224)),
@@ -138,7 +117,6 @@ def main():
                                                             transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                                                                  std=[0.229, 0.224, 0.225]),
                                                             ]))
-
 
     val_loader = torch.utils.data.DataLoader(test_dataset,
                                              batch_size=args.batch_size,
@@ -319,11 +297,12 @@ def validate(val_loader, model, criterion, args):
     print(D)
     return top1.avg, losses.avg, output, target, D
 
+
 def save_checkpoint(state, is_best, args):
     torch.save(state, args.checkpoint_path)
     if is_best:
-        best_state = state.pop('optimizer')
-        torch.save(best_state, args.best_checkpoint_path)
+        torch.save(state, args.best_checkpoint_path)
+
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -454,6 +433,7 @@ class RecorderMeter1(object):
         # im_re_label.transpose()
         y_pred = im_pre_label.flatten()
         im_pre_label.transpose()
+
 
 class RecorderMeter(object):
     """Computes and stores the minimum loss value and its epoch index"""

@@ -1,3 +1,4 @@
+from pathlib import Path
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -6,6 +7,9 @@ from .ir50 import Backbone
 from .vit_model import VisionTransformer, PatchEmbed
 from timm.models.layers import trunc_normal_, DropPath
 from thop import profile
+
+IR_MODEL_PATH = Path(__file__).parent / 'pretrain' / 'ir50.pth'
+FACENET_MODEL_PATH = Path(__file__).parent / 'pretrain' / 'mobilefacenet_model_best.pth.tar'
 
 
 def load_pretrained_weights(model, checkpoint):
@@ -34,6 +38,7 @@ def load_pretrained_weights(model, checkpoint):
     print('load_weight', len(matched_layers))
     return model
 
+
 def window_partition(x, window_size, h_w, w_w):
     """
     Args:
@@ -48,11 +53,13 @@ def window_partition(x, window_size, h_w, w_w):
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
     return windows
 
+
 class window(nn.Module):
     def __init__(self, window_size, dim):
         super(window, self).__init__()
         self.window_size = window_size
         self.norm = nn.LayerNorm(dim)
+
     def forward(self, x):
         x = x.permute(0, 2, 3, 1)
         B, H, W, C = x.shape
@@ -63,6 +70,7 @@ class window(nn.Module):
         x_windows = window_partition(x, self.window_size, h_w, w_w)
         x_windows = x_windows.view(-1, self.window_size * self.window_size, C)
         return x_windows, shortcut
+
 
 class WindowAttentionGlobal(nn.Module):
     """
@@ -140,6 +148,7 @@ class WindowAttentionGlobal(nn.Module):
         x = self.proj_drop(x)
         return x
 
+
 def _to_channel_last(x):
     """
     Args:
@@ -150,13 +159,16 @@ def _to_channel_last(x):
     """
     return x.permute(0, 2, 3, 1)
 
+
 def _to_channel_first(x):
     return x.permute(0, 3, 1, 2)
+
 
 def _to_query(x, N, num_heads, dim_head):
     B = x.shape[0]
     x = x.reshape(B, 1, N, num_heads, dim_head).permute(0, 1, 3, 2, 4)
     return x
+
 
 class Mlp(nn.Module):
     """
@@ -194,6 +206,7 @@ class Mlp(nn.Module):
         x = self.drop(x)
         return x
 
+
 def window_reverse(windows, window_size, H, W, h_w, w_w):
     """
     Args:
@@ -210,6 +223,7 @@ def window_reverse(windows, window_size, H, W, h_w, w_w):
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
     return x
 
+
 class feedforward(nn.Module):
     def __init__(self, dim, window_size, mlp_ratio=4., act_layer=nn.GELU, drop=0., drop_path=0., layer_scale=None):
         super(feedforward, self).__init__()
@@ -224,6 +238,7 @@ class feedforward(nn.Module):
         self.mlp = Mlp(in_features=dim, hidden_features=int(dim * mlp_ratio), act_layer=act_layer, drop=drop)
         self.norm = nn.LayerNorm(dim)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+
     def forward(self, attn_windows, shortcut):
         B, H, W, C = shortcut.shape
         h_w = int(torch.div(H, self.window_size).item())
@@ -235,7 +250,8 @@ class feedforward(nn.Module):
 
 
 class pyramid_trans_expr2(nn.Module):
-    def __init__(self, img_size=224, num_classes=7, window_size=[28,14,7], num_heads=[2, 4, 8], dims=[64, 128, 256], embed_dim=768):
+    def __init__(self, img_size=224, num_classes=7, window_size=[28, 14, 7], num_heads=[2, 4, 8], dims=[64, 128, 256],
+                 embed_dim=768):
         super().__init__()
 
         self.img_size = img_size
@@ -247,8 +263,7 @@ class pyramid_trans_expr2(nn.Module):
         self.window_size = window_size
         self.N = [win * win for win in window_size]
         self.face_landback = MobileFaceNet([112, 112], 136)
-        face_landback_checkpoint = torch.load(r'C:\Users\86187\Desktop\posterv2\mixfacial\models\pretrain\mobilefacenet_model_best.pth.tar',
-                                              map_location=lambda storage, loc: storage)
+        face_landback_checkpoint = torch.load(FACENET_MODEL_PATH, map_location=lambda storage, loc: storage)
         self.face_landback.load_state_dict(face_landback_checkpoint['state_dict'])
 
         for param in self.face_landback.parameters():
@@ -257,7 +272,7 @@ class pyramid_trans_expr2(nn.Module):
         self.VIT = VisionTransformer(depth=2, embed_dim=embed_dim)
 
         self.ir_back = Backbone(50, 0.0, 'ir')
-        ir_checkpoint = torch.load(r'C:\Users\86187\Desktop\posterv2\mixfacial\models\pretrain\ir50.pth', map_location=lambda storage, loc: storage)
+        ir_checkpoint = torch.load(IR_MODEL_PATH, map_location=lambda storage, loc: storage)
 
         self.ir_back = load_pretrained_weights(self.ir_back, ir_checkpoint)
 
@@ -285,16 +300,16 @@ class pyramid_trans_expr2(nn.Module):
 
     def forward(self, x):
         x_face = F.interpolate(x, size=112)
-        x_face1 , x_face2, x_face3 = self.face_landback(x_face)
+        x_face1, x_face2, x_face3 = self.face_landback(x_face)
         x_face3 = self.last_face_conv(x_face3)
         x_face1, x_face2, x_face3 = _to_channel_last(x_face1), _to_channel_last(x_face2), _to_channel_last(x_face3)
 
         q1, q2, q3 = _to_query(x_face1, self.N[0], self.num_heads[0], self.dim_head[0]), \
-                     _to_query(x_face2, self.N[1], self.num_heads[1], self.dim_head[1]), \
-                     _to_query(x_face3, self.N[2], self.num_heads[2], self.dim_head[2])
+            _to_query(x_face2, self.N[1], self.num_heads[1], self.dim_head[1]), \
+            _to_query(x_face3, self.N[2], self.num_heads[2], self.dim_head[2])
 
         x_ir1, x_ir2, x_ir3 = self.ir_back(x)
-    
+
         x_ir1, x_ir2, x_ir3 = self.conv1(x_ir1), self.conv2(x_ir2), self.conv3(x_ir3)
         x_window1, shortcut1 = self.window1(x_ir1)
         x_window2, shortcut2 = self.window2(x_ir2)
@@ -306,17 +321,18 @@ class pyramid_trans_expr2(nn.Module):
 
         o1, o2, o3 = _to_channel_first(o1), _to_channel_first(o2), _to_channel_first(o3)
 
-        o1, o2, o3 = self.embed_q(o1).flatten(2).transpose(1, 2), self.embed_k(o2).flatten(2).transpose(1, 2), self.embed_v(o3)
+        o1, o2, o3 = (self.embed_q(o1).flatten(2).transpose(1, 2),
+                      self.embed_k(o2).flatten(2).transpose(1, 2),
+                      self.embed_v(o3))
 
         o = torch.cat([o1, o2, o3], dim=1)
 
         out = self.VIT(o)
         return out
 
+
 def compute_param_flop():
     model = pyramid_trans_expr2()
-    img = torch.rand(size=(1,3,224,224))
+    img = torch.rand(size=(1, 3, 224, 224))
     flops, params = profile(model, inputs=(img,))
-    print(f'flops:{flops/1000**3}G,params:{params/1000**2}M')
-
-
+    print(f'flops:{flops / 1000 ** 3}G,params:{params / 1000 ** 2}M')

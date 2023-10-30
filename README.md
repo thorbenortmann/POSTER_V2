@@ -1,3 +1,33 @@
+## Purpose of this Fork
+
+This repository is a fork of
+[POSTER_V2](https://github.com/Talented-Q/POSTER_V2) by
+[Talented-Q](https://github.com/Talented-Q).
+Its purpose is to create a leaner version of the existing repository
+focussing on inference with the 7 class models.
+
+### Setup
+
+I found that a few dependencies in the original requirements.txt file are broken.
+It was probably created via a `pip freeze > requirements.txt`.
+I loosened that a bit in my updated [requirements.txt](requirements.txt) file
+which only contains the dependencies that are directly used in the code.
+
+I set up my environment using Python 3.9.18 via conda
+```
+conda create --name posterv2forkenv python=3.9
+```
+and then ran
+```
+pip install -r requirements.txt -f https://download.pytorch.org/whl/torch_stable.html
+```
+( `-f ...` is necessary for `torch` and `torchvision`)
+
+
+
+
+
+
 # POSTER V2: A simpler and stronger facial expression recognition network 
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/poster-v2-a-simpler-and-stronger-facial/facial-expression-recognition-on-affectnet)](https://paperswithcode.com/sota/facial-expression-recognition-on-affectnet?p=poster-v2-a-simpler-and-stronger-facial)
