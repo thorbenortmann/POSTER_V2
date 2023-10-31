@@ -12,6 +12,30 @@ from torch.autograd import Variable
 from models.PosterV2_7cls import pyramid_trans_expr2
 from main import RecorderMeter, RecorderMeter1
 
+torch.backends.cudnn.enabled = True
+torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.allow_tf32 = True
+
+
+def print_system_report(device):
+    print(f'\n---System Info---')
+    print(f'Operating System: {platform.system()} {platform.version()}')
+    print(f'Python Version: {platform.python_version()}')
+    print(f'PyTorch Version: {torch.__version__}')
+    if device.type == 'cuda':
+        print('\n---CUDA info---')
+        print(f'CUDA Version: {torch.version.cuda}')
+        print(f'cuDNN Version: {torch.backends.cudnn.version()}')
+        print(f'CUDA Available: {torch.cuda.is_available()}')
+        print(f'GPU(s) available: {torch.cuda.device_count()}')
+        print(f'Current GPU: {torch.cuda.get_device_name(torch.cuda.current_device())}')
+    else:
+        print('\n---CPU info---')
+        print('Processor: ', platform.processor())
+        print('CPU count: ', os.cpu_count())
+
+    print('\n')
+
 
 def load_model(model_path, device):
     model = pyramid_trans_expr2(img_size=224, num_classes=7)
@@ -31,7 +55,7 @@ def load_model(model_path, device):
     return model
 
 
-def load_image(image_path):
+def load_image(image_path, device):
     image = Image.open(image_path).convert('RGB')
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -44,7 +68,8 @@ def load_image(image_path):
 
 
 def predict(model, image):
-    output = model(image)
+    with torch.no_grad():
+        output = model(image)
     probabilities = F.softmax(output, dim=1)
     return probabilities.cpu().detach().numpy()
 
@@ -52,20 +77,13 @@ def predict(model, image):
 if __name__ == '__main__':
     model_path = 'path/to/checkpoint.pth'
     image_path = 'path/to/image.jpg'
-    number_of_inferences = 100
+    number_of_inferences = 1000
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    if device.type == 'cuda':
-        print('\n---CUDA info---')
-        print('CUDA Device Count: ', torch.cuda.device_count())
-        print('First CUDA Device Name: ', torch.cuda.get_device_name(0))
-    else:
-        print('\n---CPU info---')
-        print('Processor: ', platform.processor())
-        print('CPU count: ', os.cpu_count())
+    print_system_report(device)
 
     model = load_model(model_path, device)
-    image = load_image(image_path)
+    image = load_image(image_path, device)
 
     print(f'\nStarting performance test for {number_of_inferences} inferences...')
     start_time = time.time()
