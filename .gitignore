@@ -3,6 +3,8 @@ venv/
 *.pth
 log/
 models/pretrain
+data/train/*
+data/valid/*
 
 # Following are general python ignores from https://github.com/github/gitignore/blob/main/Python.gitignore
 

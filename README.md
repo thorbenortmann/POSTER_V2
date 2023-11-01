@@ -23,10 +23,24 @@ pip install -r requirements.txt -f https://download.pytorch.org/whl/torch_stable
 ```
 ( `-f ...` is necessary for `torch` and `torchvision`)
 
+### Docker
 
+I created a [Dockerfile](Dockerfile) with a complete environment ready for training.
+You can build it like this:
+```
+docker build -t pv2-train .
+```
+and run it like this:
+```
+docker run --rm -it --gpus all --shm-size=8g -v .:/app/POSTER_V2 pv2-train
+```
+Notes:
+- The shown volume mount syntax requires Docker version >= 23.
+- shm-size is somewhat arbitrary. However, the default of 64 MB was too low.
+- For the container to use my GPUs, I installed the
+[NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
 
-
-
+---  
 
 # POSTER V2: A simpler and stronger facial expression recognition network 
 
