@@ -1,0 +1,22 @@
+/home/thor/miniconda3/envs/pv2forkenv/bin/python /home/thor/Desktop/repos/forks/POSTER_V2/inference.py 
+
+---System Info---
+Operating System: Linux #35~22.04.1-Ubuntu SMP PREEMPT_DYNAMIC Fri Oct  6 10:23:26 UTC 2
+Python Version: 3.9.18
+PyTorch Version: 1.8.1+cu111
+
+---CUDA info---
+CUDA Version: 11.1
+cuDNN Version: 8005
+CUDA Available: True
+GPU(s) available: 1
+Current GPU: NVIDIA GeForce RTX 3090
+
+
+load_weight 304
+
+Starting performance test for 10000 inferences...
+Processed 10000 images in  54.658 seconds
+One inference takes about  5.47 milli seconds
+
+Process finished with exit code 0
