@@ -1,9 +1,10 @@
-## Purpose of this Fork
+# Purpose of this Fork
 
 This repository is a fork of
 [POSTER_V2](https://github.com/Talented-Q/POSTER_V2) by
 [Talented-Q](https://github.com/Talented-Q).
 Its purpose is to create a leaner version of the existing repository
+with an easily reproducible environment
 focussing on inference with the 7 class models.
 
 ### Setup
@@ -39,7 +40,13 @@ Notes:
 - shm-size is somewhat arbitrary. However, the default of 64 MB was too low.
 - For the container to use my GPUs, I installed the
 [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
-
+- I worked on a host machine with
+Ubuntu 22.04,
+Docker 27.3.1,
+CUDA 12.2,
+cuDNN 8.9.5,
+Nvidia Container Toolkit 1.16.2
+and had an Nvidia GeForce RTX 3090 GPU.
 ---  
 
 # POSTER V2: A simpler and stronger facial expression recognition network 
